@@ -1,7 +1,9 @@
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:chat_app_class/components/main_btn.dart';
+import 'package:chat_app_class/screens/chat_screen.dart';
 import 'package:chat_app_class/screens/login_screen.dart';
 import 'package:chat_app_class/screens/registration_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -17,6 +19,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   late Animation animation;
   @override
   void initState() {
+    FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null) {
+        Navigator.pushNamedAndRemoveUntil(
+            context, ChatScreen.id, (route) => false);
+      }
+    });
     controller = AnimationController(vsync: this, duration: duration);
 
     controller.forward();
