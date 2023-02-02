@@ -1,7 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../components/main_btn.dart';
 import '../constants.dart';
+import 'chat_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   static const id = 'LoginScreen';
@@ -10,6 +12,10 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _auth = FirebaseAuth.instance;
+  String? email;
+  String? password;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -20,18 +26,22 @@ class _LoginScreenState extends State<LoginScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Hero(
-              tag: 'logo',
-              child: Container(
-                height: 200.0,
-                child: Image.asset('images/logo.png'),
+            Flexible(
+              child: Hero(
+                tag: 'logo',
+                child: Container(
+                  height: 200.0,
+                  child: Image.asset('images/logo.png'),
+                ),
               ),
             ),
             SizedBox(
               height: 48.0,
             ),
             TextField(
+              keyboardType: TextInputType.emailAddress,
               onChanged: (value) {
+                email = value;
                 //Do something with the user input.
               },
               decoration:
@@ -41,7 +51,9 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 8.0,
             ),
             TextField(
+              obscureText: true,
               onChanged: (value) {
+                password = value;
                 //Do something with the user input.
               },
               decoration: kTextFieldDecoration.copyWith(
@@ -53,7 +65,36 @@ class _LoginScreenState extends State<LoginScreen> {
             MainBtn(
               color: Colors.lightBlueAccent,
               text: 'Log In',
-              onPressed: () {},
+              onPressed: () async {
+                print(email);
+                if (email != null && password != null) {
+                  try {
+                    final newUser = await _auth.signInWithEmailAndPassword(
+                        email: email!.trim(), password: password!);
+                    if (newUser.user != null && mounted) {
+                      Navigator.pushNamed(context, ChatScreen.id);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('loged in  ${newUser.user!.email}'),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    print(e);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(e.toString()),
+                      ),
+                    );
+                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('check your credential'),
+                    ),
+                  );
+                }
+              },
             ),
           ],
         ),

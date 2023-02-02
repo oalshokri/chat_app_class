@@ -1,5 +1,7 @@
+import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:chat_app_class/components/main_btn.dart';
 import 'package:chat_app_class/screens/login_screen.dart';
+import 'package:chat_app_class/screens/registration_screen.dart';
 import 'package:flutter/material.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -22,7 +24,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         ColorTween(begin: Colors.grey, end: Colors.white).animate(controller);
     animation.addListener(() {
       setState(() {});
-      print(animation.value);
     });
 
     super.initState();
@@ -53,12 +54,18 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     height: controller.value * 100,
                   ),
                 ),
-                Text(
-                  'Chat App',
-                  style: TextStyle(
-                    fontSize: 45.0,
-                    fontWeight: FontWeight.w900,
-                  ),
+                AnimatedTextKit(
+                  repeatForever: true,
+                  animatedTexts: [
+                    TypewriterAnimatedText(
+                      'Chat App',
+                      textStyle: TextStyle(
+                        fontSize: 45.0,
+                        fontWeight: FontWeight.w900,
+                      ),
+                      speed: Duration(milliseconds: 200),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -75,7 +82,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             MainBtn(
               color: Colors.blueAccent,
               text: 'Register',
-              onPressed: () {},
+              onPressed: () {
+                Navigator.pushNamed(context, RegistrationScreen.id);
+              },
             ),
           ],
         ),
