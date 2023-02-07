@@ -81,9 +81,12 @@ class _ChatScreenState extends State<ChatScreen> {
                         shrinkWrap: true,
                         itemCount: users.length,
                         itemBuilder: (context, index) {
-                          return Container(
-                              color: Colors.amberAccent,
-                              child: Text('${users[index]['user']}'));
+                          if (users[index]['user'] != user.email) {
+                            return Container(
+                                color: Colors.amberAccent,
+                                child: Text('${users[index]['user']}'));
+                          }
+                          return SizedBox();
                         });
                   }
                   return const SizedBox();
