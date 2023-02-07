@@ -87,7 +87,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             return MessageBubble(
                                 messages: messages,
                                 index: index,
-                                sender: user.email!,
+                                sender: messages[index]['sender'],
                                 isMe: messages[index]['sender'] == user.email);
                           }),
                     );
