@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -14,9 +16,9 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _auth = FirebaseAuth.instance;
   final _fireStore = FirebaseFirestore.instance;
-
+  String? typingId;
   // dynamic messages;
-
+  Timer? _timer;
   late User user;
   TextEditingController controller = TextEditingController();
   void getCurrentUser() {
@@ -70,6 +72,26 @@ class _ChatScreenState extends State<ChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             StreamBuilder(
+                stream: _fireStore.collection('typing_users').snapshots(),
+                builder: (context, snapShot) {
+                  if (snapShot.hasData) {
+                    List<dynamic> users = snapShot.data!.docs;
+                    return ListView.builder(
+                        reverse: true,
+                        shrinkWrap: true,
+                        itemCount: users.length,
+                        itemBuilder: (context, index) {
+                          return Container(
+                              color: Colors.amberAccent,
+                              child: Text('${users[index]['user']}'));
+                        });
+                  }
+                  return const SizedBox();
+                }),
+            SizedBox(
+              height: 24,
+            ),
+            StreamBuilder(
                 stream: _fireStore
                     .collection('messages')
                     .orderBy('time', descending: true)
@@ -103,6 +125,26 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: TextField(
                       controller: controller,
                       decoration: kMessageTextFieldDecoration,
+                      onChanged: (value) async {
+                        if (_timer?.isActive ?? false) _timer?.cancel();
+                        _timer =
+                            Timer(const Duration(milliseconds: 500), () async {
+                          if (value.isNotEmpty) {
+                            if (typingId == null) {
+                              final ref = await _fireStore
+                                  .collection('typing_users')
+                                  .add({'user': user.email});
+                              typingId = ref.id;
+                            }
+                          } else if (controller.text.isEmpty) {
+                            _fireStore
+                                .collection('typing_users')
+                                .doc(typingId)
+                                .delete();
+                            typingId = null;
+                          }
+                        });
+                      },
                     ),
                   ),
                   TextButton(
@@ -117,6 +159,13 @@ class _ChatScreenState extends State<ChatScreen> {
                           },
                         );
                         controller.clear();
+                        if (typingId != null) {
+                          _fireStore
+                              .collection('typing_users')
+                              .doc(typingId)
+                              .delete();
+                          typingId = null;
+                        }
                       }
                     },
                     child: Text(
