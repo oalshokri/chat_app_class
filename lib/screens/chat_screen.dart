@@ -1,11 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:googleapis_auth/auth.dart';
+import 'package:googleapis_auth/auth_io.dart';
+import 'package:http/http.dart' as http;
 
 import '../constants.dart';
 import 'login_screen.dart';
+import 'notifications_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   static const id = 'ChatScreen';
@@ -21,6 +28,9 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _timer;
   late User user;
   TextEditingController controller = TextEditingController();
+  List<RemoteNotification?> notifications = [];
+  String token = '';
+
   void getCurrentUser() {
     user = _auth.currentUser!;
     print(user.email);
@@ -34,10 +44,66 @@ class _ChatScreenState extends State<ChatScreen> {
   //   }
   // }
 
+  void getNotifications() {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (message.notification != null) {
+        setState(() {
+          notifications.add(message.notification);
+        });
+        print(
+            'Message also contained a notification: ${message.notification!.title}');
+      }
+    });
+  }
+
+  Future<AccessToken> getAccessToken() async {
+    final serviceAccount = await rootBundle.loadString(
+        'assets/chat-app-c6b60-firebase-adminsdk-w1x0d-87facad419.json');
+    final data = await json.decode(serviceAccount);
+    print(data);
+    final accountCredentials = ServiceAccountCredentials.fromJson({
+      "private_key_id": data['private_key_id'],
+      "private_key": data['private_key'],
+      "client_email": data['client_email'],
+      "client_id": data['client_id'],
+      "type": data['type'],
+    });
+    final scopes = ["https://www.googleapis.com/auth/firebase.messaging"];
+    final AuthClient authclient = await clientViaServiceAccount(
+      accountCredentials,
+      scopes,
+    )
+      ..close(); // Remember to close the client when you are finished with it.
+
+    print(authclient.credentials.accessToken);
+
+    return authclient.credentials.accessToken;
+  }
+
+  void sendNotification(String title, String body) async {
+    http.Response response = await http.post(
+      Uri.parse(
+          'https://fcm.googleapis.com/v1/projects/chat-app-c6b60/messages:send'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        "message": {
+          "topic": "breaking_news",
+          // "token": fcmToken,
+          "notification": {"body": body, "title": title}
+        }
+      }),
+    );
+    print('response.body: ${response.body}');
+  }
+
   @override
   void initState() {
     getCurrentUser();
-
+    getNotifications();
+    getAccessToken().then((value) => token = value.data);
     super.initState();
   }
 
@@ -53,7 +119,37 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         leading: null,
         actions: <Widget>[
-          Text('${user.email}'),
+          Stack(
+            children: [
+              IconButton(
+                icon: Icon(Icons.notifications),
+                onPressed: () {
+                  Navigator.pushNamed(context, NotificationsScreen.id,
+                          arguments: notifications)
+                      .then(
+                    (value) => setState(() {
+                      notifications.clear();
+                    }),
+                  );
+                },
+              ),
+              notifications.isNotEmpty
+                  ? Container(
+                      margin: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
+                      decoration: const BoxDecoration(
+                          color: Colors.red, shape: BoxShape.circle),
+                      child: Text(
+                        '${notifications.length}',
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    )
+                  : const SizedBox(),
+            ],
+          ),
           IconButton(
             icon: Icon(Icons.logout),
             onPressed: () {
@@ -161,6 +257,8 @@ class _ChatScreenState extends State<ChatScreen> {
                             'time': DateTime.now(),
                           },
                         );
+                        sendNotification(
+                            'message from ${user.email}', controller.text);
                         controller.clear();
                         if (typingId != null) {
                           _fireStore
